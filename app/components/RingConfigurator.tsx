@@ -108,7 +108,6 @@ function RingModel({ gem, ringColor }: RingModelProps) {
               lightSource={[5, 5, 5]} 
               worldRadius={0.1}
               ior={1.8}
-              backfaceIor={1.1}
               intensity={0.1}
             >
               <mesh 
