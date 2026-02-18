@@ -40,7 +40,12 @@ const ringMetals = [
 
 const opaqueGems = ['Black Diamond', 'Onyx', 'Black Spinel'];
 
-function RingModel({ gem, ringColor }) {
+interface RingModelProps {
+  gem: { name: string; hex: string };
+  ringColor: { name: string; hex: string };
+}
+
+function RingModel({ gem, ringColor }: RingModelProps) {
   const { scene, nodes } = useGLTF('/assets/ring one.glb');
 
   // Log nodes to console to help identify correct mesh names
