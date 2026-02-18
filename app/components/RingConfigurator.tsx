@@ -103,7 +103,6 @@ function RingModel({ gem, ringColor }: RingModelProps) {
         <CubeCamera resolution={256} frames={1} envMap={envMap}>
           {(texture) => (
             <Caustics
-              backfaces
               color={gem.hex}
               position={[0, 0, 0]} // Caustics position relative to its parent (the gem mesh)
               lightSource={[5, 5, 5]} 
