@@ -56,12 +56,13 @@ function RingModel({ gem, ringColor }: RingModelProps) {
   const sceneClone = useMemo(() => scene.clone(), [scene]);
 
   sceneClone.traverse((child) => {
-    if (child.isMesh) {
+    if (child instanceof THREE.Mesh) {
       const gemMeshName = 'Body1_1';
       const ringMeshName = 'MeshBody1_1';
 
       if (child.name === gemMeshName) {
-        child.material = child.material.clone();
+        const material = child.material as THREE.MeshPhysicalMaterial;
+        child.material = material.clone();
         child.material.color = new THREE.Color(gem.hex);
         
         // Realism properties
@@ -83,7 +84,8 @@ function RingModel({ gem, ringColor }: RingModelProps) {
         child.material.dispersion = 0.15;
       }
       if (child.name === ringMeshName) {
-        child.material = child.material.clone();
+        const material = child.material as THREE.MeshStandardMaterial;
+        child.material = material.clone();
         child.material.color = new THREE.Color(ringColor.hex);
         child.material.metalness = 0.8;
         child.material.roughness = 0.2;
