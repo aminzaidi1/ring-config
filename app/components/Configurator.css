@@ -1,0 +1,65 @@
+.configurator-ui {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  width: 80%;
+  max-width: 600px;
+}
+
+.color-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.color-options h3 {
+  margin: 0;
+  padding: 0 5px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.swatches {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 5px;
+  width: 100%;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.swatches::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
+}
+
+
+.swatch {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+  flex-shrink: 0; /* Prevent swatches from shrinking */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.swatch.active {
+  transform: scale(1.15);
+  border-color: #007bff;
+}
+
+.swatch:hover {
+  transform: scale(1.1);
+}
