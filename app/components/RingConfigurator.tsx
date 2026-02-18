@@ -1,10 +1,12 @@
 'use client';
 
 import React, { Suspense, useState, useMemo, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, useGLTF } from '@react-three/drei';
+import { Canvas, useLoader } from '@react-three/fiber';
+import { OrbitControls, Environment, useGLTF, MeshRefractionMaterial, CubeCamera, Caustics } from '@react-three/drei';
 import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { useControls, Leva } from 'leva';
+import { RGBELoader } from 'three-stdlib';
 import './Configurator.css';
 
 const gemstones = [
@@ -46,54 +48,88 @@ interface RingModelProps {
 }
 
 function RingModel({ gem, ringColor }: RingModelProps) {
-  const { scene, nodes } = useGLTF('/assets/ring one.glb');
+  const { scene, nodes } = useGLTF('/assets/ring one.glb') as any;
+  const envMap = useLoader(RGBELoader, '/assets/ring envoirment.hdr');
 
-  // Log nodes to console to help identify correct mesh names
-  useEffect(() => {
-    console.log("Model nodes:", nodes);
-  }, [nodes]);
-
-  const sceneClone = useMemo(() => scene.clone(), [scene]);
-
-  sceneClone.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      const gemMeshName = 'Body1_1';
-      const ringMeshName = 'MeshBody1_1';
-
-      if (child.name === gemMeshName) {
-        const material = child.material as THREE.MeshPhysicalMaterial;
-        child.material = material.clone();
-        child.material.color = new THREE.Color(gem.hex);
-        
-        // Realism properties
-        child.material.metalness = 0.2;
-        child.material.roughness = 0.1;
-        child.material.ior = 2.4; // Index of Refraction for diamond-like materials
-        child.material.envMapIntensity = 1.5;
-
-        // Opacity and Transmission
-        if (opaqueGems.includes(gem.name)) {
-            child.material.transparent = false;
-            child.material.transmission = 0;
-        } else {
-            child.material.transparent = true;
-            child.material.transmission = 0.95; // Simulates light passing through
-        }
-
-        // Dispersion for rainbow effect
-        child.material.dispersion = 0.15;
-      }
-      if (child.name === ringMeshName) {
-        const material = child.material as THREE.MeshStandardMaterial;
-        child.material = material.clone();
-        child.material.color = new THREE.Color(ringColor.hex);
-        child.material.metalness = 0.8;
-        child.material.roughness = 0.2;
-      }
-    }
+  const config = useControls({
+    bounces: { value: 3, min: 0, max: 8, step: 1 },
+    aberrationStrength: { value: 0.01, min: 0, max: 0.1, step: 0.01 },
+    ior: { value: 2.4, min: 0, max: 10 },
+    fresnel: { value: 1, min: 0, max: 1 },
   });
 
-  return <primitive object={sceneClone} scale={10} />;
+  const isOpaque = opaqueGems.includes(gem.name);
+
+  // Clone the scene and prepare materials for the ring band
+  const sceneClone = useMemo(() => {
+    const clone = scene.clone();
+    clone.traverse((child: any) => {
+      if (child.isMesh) {
+        // Apply material to the ring part
+        if (child.name === 'MeshBody1_1') {
+          child.material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(ringColor.hex),
+            metalness: 0.8,
+            roughness: 0.2
+          });
+        }
+        // Make the original gem mesh invisible in the cloned scene
+        // because we will render a separate gem with refraction effects
+        if (child.name === 'Body1_1') {
+          child.visible = false;
+        }
+      }
+    });
+    return clone;
+  }, [scene, ringColor]);
+
+  const gemNode = nodes['Body1_1']; // Get the original gem node for geometry and transforms
+
+  return (
+    <group scale={10}>
+      {/* Render the cloned scene (ring and invisible original gem) */}
+      <primitive object={sceneClone} /> 
+      
+      {/* Conditionally render the gem with refraction effects or opaque material, ensuring correct positioning */}
+      {isOpaque ? (
+        <mesh 
+          geometry={gemNode.geometry}
+          matrix={gemNode.matrixWorld} // Use matrixWorld for correct global positioning
+          matrixAutoUpdate={false} // Disable auto-update to rely on matrixWorld
+        >
+          <meshStandardMaterial color={gem.hex} roughness={0.1} metalness={0.3} />
+        </mesh>
+      ) : (
+        <CubeCamera resolution={256} frames={1} envMap={envMap}>
+          {(texture) => (
+            <Caustics
+              backfaces
+              color={gem.hex}
+              position={[0, 0, 0]} // Caustics position relative to its parent (the gem mesh)
+              lightSource={[5, 5, 5]} 
+              worldRadius={0.1}
+              ior={1.8}
+              backfaceIor={1.1}
+              intensity={0.1}
+            >
+              <mesh 
+                geometry={gemNode.geometry}
+                matrix={gemNode.matrixWorld} // Use matrixWorld for correct global positioning
+                matrixAutoUpdate={false} // Disable auto-update to rely on matrixWorld
+              >
+                <MeshRefractionMaterial 
+                  envMap={texture} 
+                  {...config} 
+                  color={gem.hex}
+                  toneMapped={false} 
+                />
+              </mesh>
+            </Caustics>
+          )}
+        </CubeCamera>
+      )}
+    </group>
+  );
 }
 
 export default function RingConfigurator() {
@@ -110,7 +146,9 @@ export default function RingConfigurator() {
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      {/* Leva controls menu - defaults to top-right corner */}
+      <Leva /> 
       <Canvas camera={{ position: [0, 0, 1.2], fov: 50 }}>
         <Suspense fallback={null}>
           <Environment files="/assets/ring envoirment.hdr" background />
@@ -121,7 +159,7 @@ export default function RingConfigurator() {
         <pointLight position={[10, 10, 10]} intensity={1} />
         <pointLight position={[-10, -10, -10]} intensity={0.5} />
         <EffectComposer>
-            <Bloom luminanceThreshold={0.9} luminanceSmoothing={0.1} intensity={1.5} />
+            <Bloom luminanceThreshold={1} intensity={2} levels={9} mipmapBlur />
         </EffectComposer>
       </Canvas>
       <div className="configurator-ui">
@@ -131,7 +169,7 @@ export default function RingConfigurator() {
             {gemstones.map((g) => (
               <div
                 key={g.name}
-                className={`swatch ${gem.name === g.name ? 'active' : ''}`}
+                className={`swatch ${g.name === gem.name ? 'active' : ''}`}
                 style={{ background: g.hex }}
                 onClick={() => setGem(g)}
                 title={g.name}
@@ -145,7 +183,7 @@ export default function RingConfigurator() {
             {ringMetals.map((metal) => (
               <div
                 key={metal.name}
-                className={`swatch ${ringColor.name === metal.name ? 'active' : ''}`}
+                className={`swatch ${metal.name === ringColor.name ? 'active' : ''}`}
                 style={{ background: metal.hex }}
                 onClick={() => setRingColor(metal)}
                 title={metal.name}
