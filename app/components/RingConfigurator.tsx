@@ -103,11 +103,14 @@ function RingModel({ gem, ringColor }: RingModelProps) {
         <CubeCamera resolution={256} frames={1} envMap={envMap}>
           {(texture) => (
             <Caustics
+              causticsOnly={false} // Assuming false is default for displaying caustics on scene
+              backside={true} // Re-adding backside
               color={gem.hex}
               position={[0, 0, 0]} // Caustics position relative to its parent (the gem mesh)
               lightSource={[5, 5, 5]} 
               worldRadius={0.1}
               ior={1.8}
+              backsideIOR={1.1} // Re-adding backsideIOR
               intensity={0.1}
             >
               <mesh 
