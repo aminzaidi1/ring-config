@@ -163,7 +163,7 @@ export default function RingConfigurator() {
 
   const envConfig = useControls('Environment', {
     exposure: { value: 1, min: 0, max: 2, step: 0.01 },
-    intensity: { value: 1, min: 0, max: 5, step: 0.1 },
+    intensity: { value: 1, min: 0, max: 5, step: 0.01 },
   });
 
   useEffect(() => {
