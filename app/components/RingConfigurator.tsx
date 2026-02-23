@@ -55,7 +55,7 @@ function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructu
     console.log("Nodes for model:", modelPath, nodes);
   }, [nodes, modelPath]);
 
-  const envMap = useLoader(RGBELoader, '/assets/lastest.hdr');
+  const envMap = useLoader(RGBELoader, '/assets/aerodynamics_workshop_1k.hdr');
 
   const gemConfig = useControls('Gemstone', {
     bounces: { value: 3, min: 0, max: 8, step: 1 },
@@ -184,7 +184,7 @@ export default function RingConfigurator() {
       >
         <Suspense fallback={null}>
           <Environment 
-            files="/assets/lastest.hdr" 
+            files="/assets/aerodynamics_workshop_1k.hdr" 
             background 
             environmentIntensity={envConfig.intensity}
             backgroundIntensity={envConfig.intensity}
