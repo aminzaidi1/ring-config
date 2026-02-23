@@ -4,7 +4,7 @@ import React, { Suspense, useState, useMemo, useEffect } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Environment, useGLTF, MeshRefractionMaterial, CubeCamera, Caustics } from '@react-three/drei';
 import * as THREE from 'three';
-import { EffectComposer, Bloom, BrightnessContrast } from '@react-three/postprocessing';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useControls, Leva } from 'leva';
 import { RGBELoader } from 'three-stdlib';
 import './Configurator.css';
@@ -171,17 +171,9 @@ export default function RingConfigurator() {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {/* Leva controls menu - defaults to top-right corner */}
       <Leva /> 
-      <Canvas 
-        camera={{ position: [0, 0, 1.2], fov: 50 }}
-        gl={{ toneMappingExposure: 0.2 }}
-      >
+      <Canvas camera={{ position: [0, 0, 1.2], fov: 50 }}>
         <Suspense fallback={null}>
-          <Environment 
-            files="/assets/new-env.hdr" 
-            background 
-            environmentIntensity={0.8} 
-            backgroundIntensity={0.8} 
-          />
+          <Environment files="/assets/new-env.hdr" background />
           <RingModel 
             gem={gem} 
             ringColor={ringColor} 
@@ -192,7 +184,6 @@ export default function RingConfigurator() {
 
         <EffectComposer>
             <Bloom luminanceThreshold={1} intensity={2} levels={9} mipmapBlur />
-            <BrightnessContrast brightness={0} contrast={0.3} />
         </EffectComposer>
       </Canvas>
       <div className="configurator-ui">
