@@ -4,7 +4,7 @@ import React, { Suspense, useState, useMemo, useEffect } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Environment, useGLTF, MeshRefractionMaterial, CubeCamera, Caustics } from '@react-three/drei';
 import * as THREE from 'three';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, BrightnessContrast } from '@react-three/postprocessing';
 import { useControls, Leva } from 'leva';
 import { RGBELoader } from 'three-stdlib';
 import './Configurator.css';
@@ -46,16 +46,17 @@ interface RingModelProps {
   gem: { name: string; hex: string };
   ringColor: { name: string; hex: string };
   modelPath: string; // Added modelPath prop
+  envMapPath: string; // Added envMapPath prop
 }
 
-function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructure modelPath
+function RingModel({ gem, ringColor, modelPath, envMapPath }: RingModelProps) { // Destructure modelPath and envMapPath
   const { scene, nodes } = useGLTF(modelPath) as any; // Use dynamic modelPath
 
   useEffect(() => {
     console.log("Nodes for model:", modelPath, nodes);
   }, [nodes, modelPath]);
 
-  const envMap = useLoader(RGBELoader, '/assets/aerodynamics_workshop_1k.hdr');
+  const envMap = useLoader(RGBELoader, envMapPath);
 
   const gemConfig = useControls('Gemstone', {
     bounces: { value: 3, min: 0, max: 8, step: 1 },
@@ -77,7 +78,7 @@ function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructu
     clone.traverse((child: any) => {
       if (child.isMesh) {
         // Apply material to the ring part - check for multiple naming conventions
-        if (child.name === 'metal_1' || child.name === 'MeshBody1_1') {
+        if (child.name === 'metal_1' || child.name === 'MeshBody1_1' || child.name === 'MeshBody1_1_1') {
           child.material = new THREE.MeshStandardMaterial({
             color: new THREE.Color(ringColor.hex),
             metalness: metalConfig.metalness,
@@ -86,7 +87,7 @@ function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructu
         }
         // Make the original gem mesh invisible in the cloned scene
         // Check for multiple naming conventions to avoid Z-fighting/flickering
-        if (child.name === 'stone_1' || child.name === 'Body1_1') {
+        if (child.name === 'stone_1' || child.name === 'Body1_1' || child.name === 'Body1_1_1') {
           child.visible = false;
         }
       }
@@ -94,8 +95,8 @@ function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructu
     return clone;
   }, [scene, ringColor, metalConfig]); // Ensure scene and metalConfig are dependencies
 
-  const gemNode = nodes['stone_1'] || nodes['Body1_1']; 
-  const ringNode = nodes['metal_1'] || nodes['MeshBody1_1']; 
+  const gemNode = nodes['stone_1'] || nodes['Body1_1'] || nodes['Body1_1_1']; 
+  const ringNode = nodes['metal_1'] || nodes['MeshBody1_1'] || nodes['MeshBody1_1_1']; 
 
   // Return null if critical nodes are not yet loaded to prevent errors
   if (!gemNode || !ringNode) {
@@ -162,8 +163,17 @@ export default function RingConfigurator() {
   const [isClient, setIsClient] = useState(false);
 
   const envConfig = useControls('Environment', {
+    envType: {
+      options: {
+        'Aerodynamics': 'hdr1',
+        'Latest': 'hdr2',
+        'Solid Gray': 'solid'
+      },
+      value: 'hdr1'
+    },
     exposure: { value: 1, min: 0, max: 2, step: 0.01 },
     intensity: { value: 1, min: 0, max: 5, step: 0.01 },
+    contrast: { value: 0, min: -1, max: 1, step: 0.01 },
   });
 
   useEffect(() => {
@@ -174,31 +184,50 @@ export default function RingConfigurator() {
     return null;
   }
 
+  const currentEnvPath = envConfig.envType === 'hdr2' 
+    ? '/assets/lastest.hdr' 
+    : '/assets/aerodynamics_workshop_1k.hdr';
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {/* Leva controls menu - defaults to top-right corner */}
       <Leva /> 
       <Canvas 
         camera={{ position: [0, 0, 1.2], fov: 50 }}
-        gl={{ toneMappingExposure: envConfig.exposure }}
+        gl={{ 
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: envConfig.exposure 
+        }}
       >
         <Suspense fallback={null}>
-          <Environment 
-            files="/assets/aerodynamics_workshop_1k.hdr" 
-            background 
-            environmentIntensity={envConfig.intensity}
-            backgroundIntensity={envConfig.intensity}
-          />
+          {envConfig.envType === 'solid' ? (
+            <>
+              <color attach="background" args={['#d3d3d3']} />
+              <Environment 
+                files={currentEnvPath} 
+                environmentIntensity={envConfig.intensity}
+              />
+            </>
+          ) : (
+            <Environment 
+              files={currentEnvPath} 
+              background 
+              environmentIntensity={envConfig.intensity}
+              backgroundIntensity={envConfig.intensity}
+            />
+          )}
           <RingModel 
             gem={gem} 
             ringColor={ringColor} 
             modelPath={`/assets/${ringModel}.glb`} // Pass dynamic modelPath
+            envMapPath={currentEnvPath} // Pass current environment path
           />
           <OrbitControls minDistance={0.5} maxDistance={10} />
         </Suspense>
 
         <EffectComposer>
             <Bloom luminanceThreshold={1} intensity={2} levels={9} mipmapBlur />
+            <BrightnessContrast brightness={0} contrast={envConfig.contrast} />
         </EffectComposer>
       </Canvas>
       <div className="configurator-ui">
