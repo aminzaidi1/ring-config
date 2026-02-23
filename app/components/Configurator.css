@@ -63,3 +63,49 @@
 .swatch:hover {
   transform: scale(1.1);
 }
+
+/* Model Switcher Styles */
+.model-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.model-options h3 {
+  margin: 0;
+  padding: 0 5px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.model-buttons {
+  display: flex;
+  gap: 8px;
+  padding: 5px;
+}
+
+.model-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 2px solid #fff;
+  background: rgba(255, 255, 255, 0.3);
+  color: #333;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out, background 0.2s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.model-btn.active {
+  background: rgba(0, 123, 255, 0.2);
+  border-color: #007bff;
+  transform: scale(1.08);
+}
+
+.model-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}

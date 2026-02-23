@@ -4,7 +4,7 @@ import React, { Suspense, useState, useMemo, useEffect } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Environment, useGLTF, MeshRefractionMaterial, CubeCamera, Caustics } from '@react-three/drei';
 import * as THREE from 'three';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, BrightnessContrast } from '@react-three/postprocessing';
 import { useControls, Leva } from 'leva';
 import { RGBELoader } from 'three-stdlib';
 import './Configurator.css';
@@ -45,11 +45,20 @@ const opaqueGems = ['Black Diamond', 'Onyx', 'Black Spinel'];
 interface RingModelProps {
   gem: { name: string; hex: string };
   ringColor: { name: string; hex: string };
+  modelPath: string; // Added modelPath prop
 }
 
-function RingModel({ gem, ringColor }: RingModelProps) {
-  const { scene, nodes } = useGLTF('/assets/ring one.glb') as any;
-  const envMap = useLoader(RGBELoader, '/assets/ring envoirment.hdr');
+function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructure modelPath
+  const { scene, nodes } = useGLTF(modelPath) as any; // Use dynamic modelPath
+
+  useEffect(() => {
+    console.log("Nodes for model:", modelPath, nodes);
+    // You can also expand individual nodes like:
+    // console.log("Gem Node:", nodes['Body1_1']);
+    // console.log("Ring Node:", nodes['MeshBody1_1']);
+  }, [nodes, modelPath]);
+
+  const envMap = useLoader(RGBELoader, '/assets/new-env.hdr');
 
   const config = useControls({
     bounces: { value: 3, min: 0, max: 8, step: 1 },
@@ -66,7 +75,7 @@ function RingModel({ gem, ringColor }: RingModelProps) {
     clone.traverse((child: any) => {
       if (child.isMesh) {
         // Apply material to the ring part
-        if (child.name === 'MeshBody1_1') {
+        if (child.name === 'metal_1') { // Updated to 'metal_1'
           child.material = new THREE.MeshStandardMaterial({
             color: new THREE.Color(ringColor.hex),
             metalness: 0.8,
@@ -75,15 +84,21 @@ function RingModel({ gem, ringColor }: RingModelProps) {
         }
         // Make the original gem mesh invisible in the cloned scene
         // because we will render a separate gem with refraction effects
-        if (child.name === 'Body1_1') {
+        if (child.name === 'stone_1') { // Updated to 'stone_1'
           child.visible = false;
         }
       }
     });
     return clone;
-  }, [scene, ringColor]);
+  }, [scene, ringColor]); // Ensure scene is a dependency
 
-  const gemNode = nodes['Body1_1']; // Get the original gem node for geometry and transforms
+  const gemNode = nodes['stone_1']; // Updated to 'stone_1'
+  const ringNode = nodes['metal_1']; // Updated to 'metal_1'
+
+  // Return null if critical nodes are not yet loaded to prevent errors
+  if (!gemNode || !ringNode) {
+    return null; 
+  }
 
   return (
     <group scale={10}>
@@ -103,14 +118,14 @@ function RingModel({ gem, ringColor }: RingModelProps) {
         <CubeCamera resolution={256} frames={1} envMap={envMap}>
           {(texture) => (
             <Caustics
-              causticsOnly={false} // Assuming false is default for displaying caustics on scene
-              backside={true} // Re-adding backside
+              causticsOnly={false}
+              backside={true} 
               color={gem.hex}
               position={[0, 0, 0]} // Caustics position relative to its parent (the gem mesh)
-              lightSource={[5, 5, 5]} 
+              lightSource={[5, 5, -10]} 
               worldRadius={0.1}
               ior={1.8}
-              backsideIOR={1.1} // Re-adding backsideIOR
+              backsideIOR={1.1} 
               intensity={0.1}
             >
               <mesh 
@@ -133,9 +148,15 @@ function RingModel({ gem, ringColor }: RingModelProps) {
   );
 }
 
+// Preload all 3 models for instant switching
+useGLTF.preload('/assets/1.glb');
+useGLTF.preload('/assets/2.glb');
+useGLTF.preload('/assets/3.glb');
+
 export default function RingConfigurator() {
   const [gem, setGem] = useState(gemstones[0]);
   const [ringColor, setRingColor] = useState(ringMetals[0]);
+  const [ringModel, setRingModel] = useState<'1' | '2' | '3'>('1'); // New state for ring model
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -150,20 +171,47 @@ export default function RingConfigurator() {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {/* Leva controls menu - defaults to top-right corner */}
       <Leva /> 
-      <Canvas camera={{ position: [0, 0, 1.2], fov: 50 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 1.2], fov: 50 }}
+        gl={{ toneMappingExposure: 0.2 }}
+      >
         <Suspense fallback={null}>
-          <Environment files="/assets/ring envoirment.hdr" background />
-          <RingModel gem={gem} ringColor={ringColor} />
+          <Environment 
+            files="/assets/new-env.hdr" 
+            background 
+            environmentIntensity={0.8} 
+            backgroundIntensity={0.8} 
+          />
+          <RingModel 
+            gem={gem} 
+            ringColor={ringColor} 
+            modelPath={`/assets/${ringModel}.glb`} // Pass dynamic modelPath
+          />
           <OrbitControls minDistance={0.5} maxDistance={10} />
         </Suspense>
-        {/* Add extra lights for more sparkle */}
-        <pointLight position={[10, 10, 10]} intensity={1} />
-        <pointLight position={[-10, -10, -10]} intensity={0.5} />
+
         <EffectComposer>
             <Bloom luminanceThreshold={1} intensity={2} levels={9} mipmapBlur />
+            <BrightnessContrast brightness={0} contrast={0.3} />
         </EffectComposer>
       </Canvas>
       <div className="configurator-ui">
+        {/* New Ring Model Switcher UI */}
+        <div className="model-options">
+          <h3>Ring Model</h3>
+          <div className="model-buttons">
+            {(['1', '2', '3'] as const).map((id) => (
+              <button
+                key={id}
+                className={`model-btn ${ringModel === id ? 'active' : ''}`}
+                onClick={() => setRingModel(id)}
+              >
+                Ring {id}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Existing Gemstone Options */}
         <div className="color-options">
           <h3>Gemstone: {gem.name}</h3>
           <div className="swatches">
@@ -178,6 +226,7 @@ export default function RingConfigurator() {
             ))}
           </div>
         </div>
+        {/* Existing Metal Options */}
         <div className="color-options">
           <h3>Metal: {ringColor.name}</h3>
           <div className="swatches">
