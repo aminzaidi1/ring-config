@@ -53,18 +53,20 @@ function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructu
 
   useEffect(() => {
     console.log("Nodes for model:", modelPath, nodes);
-    // You can also expand individual nodes like:
-    // console.log("Gem Node:", nodes['Body1_1']);
-    // console.log("Ring Node:", nodes['MeshBody1_1']);
   }, [nodes, modelPath]);
 
-  const envMap = useLoader(RGBELoader, '/assets/new-env.hdr');
+  const envMap = useLoader(RGBELoader, '/assets/lastest.hdr');
 
-  const config = useControls({
+  const gemConfig = useControls('Gemstone', {
     bounces: { value: 3, min: 0, max: 8, step: 1 },
     aberrationStrength: { value: 0.01, min: 0, max: 0.1, step: 0.01 },
     ior: { value: 2.4, min: 0, max: 10 },
     fresnel: { value: 1, min: 0, max: 1 },
+  });
+
+  const metalConfig = useControls('Ring Metal', {
+    metalness: { value: 0.8, min: 0, max: 1, step: 0.01 },
+    roughness: { value: 0.2, min: 0, max: 1, step: 0.01 },
   });
 
   const isOpaque = opaqueGems.includes(gem.name);
@@ -74,26 +76,26 @@ function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructu
     const clone = scene.clone();
     clone.traverse((child: any) => {
       if (child.isMesh) {
-        // Apply material to the ring part
-        if (child.name === 'metal_1') { // Updated to 'metal_1'
+        // Apply material to the ring part - check for multiple naming conventions
+        if (child.name === 'metal_1' || child.name === 'MeshBody1_1') {
           child.material = new THREE.MeshStandardMaterial({
             color: new THREE.Color(ringColor.hex),
-            metalness: 0.8,
-            roughness: 0.2
+            metalness: metalConfig.metalness,
+            roughness: metalConfig.roughness
           });
         }
         // Make the original gem mesh invisible in the cloned scene
-        // because we will render a separate gem with refraction effects
-        if (child.name === 'stone_1') { // Updated to 'stone_1'
+        // Check for multiple naming conventions to avoid Z-fighting/flickering
+        if (child.name === 'stone_1' || child.name === 'Body1_1') {
           child.visible = false;
         }
       }
     });
     return clone;
-  }, [scene, ringColor]); // Ensure scene is a dependency
+  }, [scene, ringColor, metalConfig]); // Ensure scene and metalConfig are dependencies
 
-  const gemNode = nodes['stone_1']; // Updated to 'stone_1'
-  const ringNode = nodes['metal_1']; // Updated to 'metal_1'
+  const gemNode = nodes['stone_1'] || nodes['Body1_1']; 
+  const ringNode = nodes['metal_1'] || nodes['MeshBody1_1']; 
 
   // Return null if critical nodes are not yet loaded to prevent errors
   if (!gemNode || !ringNode) {
@@ -135,7 +137,7 @@ function RingModel({ gem, ringColor, modelPath }: RingModelProps) { // Destructu
               >
                 <MeshRefractionMaterial 
                   envMap={texture} 
-                  {...config} 
+                  {...gemConfig} 
                   color={gem.hex}
                   toneMapped={false} 
                 />
@@ -159,6 +161,11 @@ export default function RingConfigurator() {
   const [ringModel, setRingModel] = useState<'1' | '2' | '3'>('1'); // New state for ring model
   const [isClient, setIsClient] = useState(false);
 
+  const envConfig = useControls('Environment', {
+    exposure: { value: 1, min: 0, max: 2, step: 0.01 },
+    intensity: { value: 1, min: 0, max: 5, step: 0.1 },
+  });
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -171,9 +178,17 @@ export default function RingConfigurator() {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {/* Leva controls menu - defaults to top-right corner */}
       <Leva /> 
-      <Canvas camera={{ position: [0, 0, 1.2], fov: 50 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 1.2], fov: 50 }}
+        gl={{ toneMappingExposure: envConfig.exposure }}
+      >
         <Suspense fallback={null}>
-          <Environment files="/assets/new-env.hdr" background />
+          <Environment 
+            files="/assets/lastest.hdr" 
+            background 
+            environmentIntensity={envConfig.intensity}
+            backgroundIntensity={envConfig.intensity}
+          />
           <RingModel 
             gem={gem} 
             ringColor={ringColor} 
